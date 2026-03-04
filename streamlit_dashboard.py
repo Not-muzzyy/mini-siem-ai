@@ -1,4 +1,4 @@
-“”“Advanced Streamlit dashboard for the mini-SIEM workflow.
+""" Advanced Streamlit dashboard for the mini-SIEM workflow.
 
 Fixes applied vs original:
 
@@ -6,7 +6,7 @@ Fixes applied vs original:
 - Feature engineering pipeline integrated before training
 - Sample dataset auto-loaded for demo
 - Improved error handling throughout
-  “””
+  """
 
 from **future** import annotations
 
@@ -28,7 +28,7 @@ from network_feature_engineering import engineer_network_features
 from llm_threat_reasoning import LLMThreatReasoningError, run_structured_threat_reasoning
 from risk_scoring_engine import calculate_risk_score
 
-DARK_THEME_CSS = “””
+DARK_THEME_CSS = """
 
 <style>
     .stApp {
@@ -92,7 +92,7 @@ DARK_THEME_CSS = “””
     }
 </style>
 
-“””
+"""
 
 FEATURE_COLUMNS = [
 “failed_login_ratio”,
