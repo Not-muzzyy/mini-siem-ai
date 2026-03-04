@@ -1,144 +1,226 @@
-# Mini-SIEM Architecture Design
+# 🛡️ Mini-SIEM — AI-Powered Security Operations Platform
 
-## 1) Module responsibilities
+<p align="center">
+  <img src="https://img.shields.io/badge/Python-3.10+-blue?style=for-the-badge&logo=python&logoColor=white"/>
+  <img src="https://img.shields.io/badge/Streamlit-Dashboard-red?style=for-the-badge&logo=streamlit&logoColor=white"/>
+  <img src="https://img.shields.io/badge/ML-RandomForest-orange?style=for-the-badge&logo=scikit-learn&logoColor=white"/>
+  <img src="https://img.shields.io/badge/XAI-SHAP-purple?style=for-the-badge"/>
+  <img src="https://img.shields.io/badge/LLM-GPT--4o--mini-green?style=for-the-badge&logo=openai&logoColor=white"/>
+  <img src="https://img.shields.io/badge/Status-Complete-brightgreen?style=for-the-badge"/>
+</p>
 
-### A. Log Ingestion & Normalization Layer
-- Collects structured network telemetry from sources such as firewall logs, NetFlow/IPFIX, DNS logs, proxy logs, and endpoint network events.
-- Enforces a common schema (`event_time`, `src_ip`, `dst_ip`, `src_port`, `dst_port`, `protocol`, `bytes_in`, `bytes_out`, `action`, `device_id`, `tenant_id`, etc.).
-- Performs deduplication, time normalization (UTC), enrichment with asset inventory tags, and integrity checks.
+<p align="center">
+  A production-grade Security Information & Event Management system combining ML attack classification,
+  SHAP explainability, LLM threat reasoning, automated PDF incident reports, and a real-time Streamlit dashboard.
+</p>
 
-### B. Feature Store & Label Management
-- Stores engineered, model-ready features at event/session/window granularity.
-- Manages supervised labels (e.g., `benign`, `scan`, `brute_force`, `c2`, `data_exfiltration`) and lineage metadata.
-- Supports offline training and online inference consistency by using versioned feature definitions.
+-----
 
-### C. Supervised ML Attack Classifier
-- Performs multi-class attack classification over network events/sessions.
-- Uses calibrated probability outputs for downstream risk scoring.
-- Supports model versioning, drift monitoring, and rollback.
+## 🤯 What is a SIEM?
 
-### D. Explainability Service (SHAP)
-- Computes local SHAP values per high-risk prediction for analyst transparency.
-- Produces global importance summaries to validate model behavior against threat hypotheses.
-- Flags unstable explanations (large variance over similar samples) as potential model quality issues.
+A **SIEM (Security Information & Event Management)** system is the central nervous system of enterprise cybersecurity. It ingests network logs, detects attacks in real time, explains the reasoning, and generates reports for security analysts.
 
-### E. LLM Threat Reasoning Engine
-- Converts structured detections + SHAP explanations + historical context into narrative threat assessments.
-- Executes controlled reasoning tasks: hypothesis generation, kill-chain mapping, confidence rationale, and recommended next actions.
-- Operates with strict prompt boundaries and retrieval from curated internal knowledge (playbooks, ATT&CK mappings, prior incidents).
+Real SIEM products (IBM QRadar, Splunk, Microsoft Sentinel) cost **₹50L–₹5Cr/year**. This project builds a fully working mini version using open-source Python! 🔥
 
-### F. Risk Scoring Engine
-- Fuses ML confidence, SHAP-derived driver severity, rule hits, asset criticality, user/entity risk, and temporal persistence.
-- Produces normalized risk scores (0–100) at event, entity, and incident level.
-- Applies policy thresholds to trigger alerts, escalations, or automated containment workflows.
+-----
 
-### G. Case Management & Analyst UI
-- Presents alert timeline, evidence bundle, SHAP top factors, LLM reasoning summary, and recommended triage actions.
-- Tracks analyst decisions for feedback loops and label correction.
+## 🏗️ Architecture
 
-### H. Governance, Security, and Audit Layer
-- Centralizes RBAC/ABAC, data retention, encryption, immutable audit logs, and model governance controls.
-- Ensures traceability: input logs → features → model output → explanation → analyst action.
+```
+Raw Network Logs (CSV)
+        │
+        ▼
+① Feature Engineering         network_feature_engineering.py
+  9 features per IP per 5-min window
+        │
+        ▼
+② ML Attack Classifier         attack_classification_pipeline.py
+  RandomForest + GridSearchCV
+  → Attack type + confidence %
+        │
+        ├─────────────────────────┐
+        ▼                         ▼
+③ Risk Scoring Engine         ④ SHAP Explainability
+   risk_scoring_engine.py        shap_explainability.py
+   → 0-100 risk score            → Why did AI decide this?
+   → Low/Medium/High/Critical    → Top feature drivers
+        │                         │
+        └──────────┬──────────────┘
+                   ▼
+        ⑤ LLM Threat Reasoning     llm_threat_reasoning.py
+           GPT-4o-mini
+           → Narrative threat assessment
+           → Business impact + response steps
+                   │
+                   ▼
+        ⑥ PDF Incident Report      incident_response_report.py
+           Auto-generated professional PDF
+           (built from scratch — no external PDF libs!)
+                   │
+                   ▼
+        ⑦ Streamlit Dashboard      streamlit_dashboard.py
+           Live metrics, SHAP charts, risk gauge, AI reports
+```
 
-## 2) Data flow diagram explanation
+-----
 
-1. **Collection:** Network devices and sensors emit structured logs to an ingestion bus.
-2. **Normalization/Enrichment:** Logs are validated, normalized to a common schema, enriched with CMDB/asset/user context, and persisted in hot+cold storage.
-3. **Feature Generation:** Streaming and batch feature pipelines compute statistical, temporal, and contextual features and publish them to the feature store.
-4. **Classification:** Online inference service scores incoming events/sessions with the supervised model and returns class probabilities.
-5. **Explainability:** For scores above configurable thresholds (or sampled baseline traffic), SHAP service computes feature attributions.
-6. **Reasoning:** LLM engine consumes: (a) model output, (b) SHAP evidence, (c) correlated events, and (d) threat intel context to create a structured assessment.
-7. **Risk Fusion:** Risk engine calculates composite score and severity tier; correlation rules can aggregate low-signal events into a higher-confidence incident.
-8. **Alerting/Response:** High-severity findings enter case management/SOAR for analyst triage or automated controls.
-9. **Feedback Loop:** Analyst verdicts and post-incident outcomes update labels, retraining sets, thresholds, and prompt templates.
+## ✨ Features
 
-## 3) Feature engineering strategy
+|Module                   |Capability                                                                       |
+|-------------------------|---------------------------------------------------------------------------------|
+|🔧 **Feature Engineering**|9 ML features from raw logs — port entropy, SYN ratio, C2 beacon timing, and more|
+|🤖 **Attack Classifier**  |Detects 6 attack types with hyperparameter tuning via GridSearchCV               |
+|🔍 **SHAP Explainability**|Real TreeExplainer — explains WHY the model flagged each event                   |
+|⚠️ **Risk Scoring**       |Weighted 4-signal composite score (0-100) with category mapping                  |
+|🧠 **LLM Reasoning**      |GPT-4o-mini generates narrative threat assessments with retry + backoff          |
+|📄 **PDF Reports**        |Professional incident response PDFs built from raw bytes — zero dependencies     |
+|📊 **Dashboard**          |Streamlit UI with confusion matrix, SHAP charts, risk gauge, and AI reports      |
 
-### A. Core network behavior features
-- Flow volume and directionality: `bytes_in/out`, packet counts, ratio metrics.
-- Connection behavior: unique destination count, failed/successful connection ratios, port entropy.
-- Protocol/service features: protocol-specific flags, uncommon port-service pairs.
+-----
 
-### B. Temporal and sequence features
-- Sliding windows (1m, 5m, 1h): burstiness, periodicity, beacon-like intervals.
-- Session progression markers: connection retries, time-to-first-success, long-lived sessions.
-- Baseline deviation: z-score or robust deviation from entity historical norms.
+## 🎯 Attack Types Detected
 
-### C. Entity and graph-context features
-- Asset criticality, exposure status, business role.
-- Peer-group deviation (host compared to similar role-based cohort).
-- Graph indicators: fan-out/fan-in anomalies, rare communication edges, lateral movement patterns.
+|Attack               |Description        |Key Signal                                  |
+|---------------------|-------------------|--------------------------------------------|
+|✅ `benign`           |Normal traffic     |Balanced, regular behavior                  |
+|🔑 `brute_force`      |Password guessing  |High failed_login_ratio                     |
+|🔭 `scan`             |Port reconnaissance|High port_entropy, unique_ports             |
+|💥 `ddos`             |Flood attack       |Extreme connection_rate, high syn_flag_ratio|
+|🕹️ `c2`               |Malware beacon     |Near-zero inter_request_time_std            |
+|📤 `data_exfiltration`|Data theft         |Very high avg_packet_size                   |
 
-### D. Threat-intel and policy features
-- Indicator matches (IP/domain reputation, known C2 infra, geo-risk indicators).
-- Policy violations (blocked outbound, denied privileged segment access).
+-----
 
-### E. Label and dataset quality strategy
-- Balanced sampling or class-weighting for imbalanced attack classes.
-- Time-aware train/validation/test splitting to avoid leakage.
-- Hard-negative mining to reduce false positives in noisy environments.
+## 📦 Installation
 
-### F. Explainability-aligned feature governance
-- Prefer semantically interpretable features where possible.
-- Track feature drift and SHAP drift; unstable key features trigger review before promotion.
+```bash
+# 1. Clone the repository
+git clone https://github.com/Not-muzzyy/try.git
+cd try
 
-## 4) Evaluation metrics
+# 2. Install dependencies
+pip install -r requirements.txt
 
-### A. ML classifier quality
-- **Macro-F1 / Weighted-F1:** handles class imbalance across attack types.
-- **Precision/Recall by class:** especially critical for high-impact attacks (e.g., exfiltration).
-- **PR-AUC:** preferred over ROC-AUC in imbalanced security datasets.
-- **Calibration metrics (Brier score / ECE):** ensures predicted probabilities are actionable for risk fusion.
+# 3. Launch dashboard
+streamlit run streamlit_dashboard.py
+```
 
-### B. SIEM detection effectiveness
-- **Alert precision (true positive rate among alerts).**
-- **Detection latency:** event time to alert generation.
-- **MTTD / MTTR impact:** operational SOC outcomes.
-- **Incident coverage:** % of ATT&CK tactics/techniques meaningfully detected.
+> **Optional:** Set `OPENAI_API_KEY` environment variable to enable LLM threat reports.
+> 
+> ```bash
+> export OPENAI_API_KEY=your_key_here
+> ```
 
-### C. Explainability and analyst utility
-- **Explanation consistency:** similar events should have similar top SHAP drivers.
-- **Analyst acceptance rate:** % alerts where explanations are deemed useful.
-- **Triage acceleration:** reduction in average investigation time.
+-----
 
-### D. LLM reasoning quality and safety
-- **Factual grounding score:** claims attributable to provided evidence.
-- **Hallucination rate:** unsupported assertions per assessment.
-- **Actionability score:** analyst-rated usefulness of recommendations.
+## 🚀 Quick Start
 
-### E. Risk engine performance
-- **Risk-to-incident correlation:** how strongly high scores map to confirmed incidents.
-- **Threshold stability:** alert volume volatility under normal traffic changes.
-- **Business impact weighting validity:** alignment with critical asset protection outcomes.
+1. Run `streamlit run streamlit_dashboard.py`
+1. Enable **“Use sample dataset”** in the sidebar *(included in repo)*
+1. Click **“Run SIEM Analysis”**
+1. Explore all 4 tabs — metrics, confusion matrix, SHAP, risk + AI report
 
-## 5) Security considerations
+-----
 
-### A. Data protection and privacy
-- Encrypt data in transit (mTLS) and at rest (KMS-backed keys).
-- Minimize PII; tokenize or pseudonymize sensitive fields where feasible.
-- Enforce retention schedules and legal/regulatory handling constraints.
+## 🗂️ Project Structure
 
-### B. Access control and isolation
-- Fine-grained RBAC/ABAC for telemetry, models, and investigations.
-- Tenant/workspace isolation for multi-organization deployments.
-- Just-in-time privileged access with full audit trail.
+```
+mini-siem/
+│
+├── streamlit_dashboard.py          → Main UI — run this
+├── network_feature_engineering.py  → Raw logs → 9 ML features
+├── attack_classification_pipeline.py → ML training + inference
+├── shap_explainability.py          → SHAP TreeExplainer integration
+├── risk_scoring_engine.py          → 4-signal weighted risk score
+├── llm_threat_reasoning.py         → GPT-4o-mini threat analysis
+├── incident_response_report.py     → Raw PDF byte generation
+├── mini_siem_design.md             → Full architecture document
+│
+├── data/
+│   └── sample_intrusion_dataset.csv → 2000-row labeled dataset
+│
+├── artifacts/                      → Saved ML models (auto-created)
+├── logs/                           → Log storage
+└── requirements.txt
+```
 
-### C. Pipeline and model integrity
-- Signed model artifacts and provenance verification before deployment.
-- Feature pipeline integrity checks to detect poisoning or schema tampering.
-- Canary deployments and rollback safeguards for model updates.
+-----
 
-### D. Adversarial and abuse resistance
-- Detect evasion patterns (mimicry traffic, low-and-slow behavior).
-- Monitor for data poisoning indicators in training feedback loops.
-- Rate-limit and validate external intel feeds to reduce supply-chain injection risk.
+## 🛠️ Tech Stack
 
-### E. LLM-specific guardrails
-- Restrict prompts to structured evidence; disallow open-ended internet lookups in critical paths unless brokered.
-- Apply policy filters to prevent sensitive data exfiltration in generated text.
-- Require citation-style evidence binding in LLM outputs for analyst trust.
+|Technology                |Purpose                     |
+|--------------------------|----------------------------|
+|Python 3.10+              |Core language               |
+|Streamlit                 |Interactive dashboard       |
+|Scikit-learn              |RandomForest + GridSearchCV |
+|SHAP                      |TreeExplainer explainability|
+|Pandas / NumPy            |Data processing             |
+|Matplotlib                |Charts and visualizations   |
+|OpenAI API (stdlib urllib)|LLM threat reasoning        |
+|Raw PDF bytes             |Incident report generation  |
 
-### F. Operational resilience
-- Queue buffering and backpressure handling for ingestion spikes.
-- Graceful degradation modes (rule-based fallback if ML/LLM components fail).
-- Disaster recovery: replicated storage, tested backups, and incident runbooks.
+-----
+
+## 🧠 Key Engineering Highlights
+
+**Zero external PDF dependencies** — `incident_response_report.py` generates PDFs by writing raw PDF specification bytes directly in Python. No ReportLab, no FPDF.
+
+**Multi-version SHAP compatibility** — `shap_explainability.py` handles all 3 SHAP output formats (list, 2D array, 3D array) to prevent version-upgrade breakage.
+
+**Exponential backoff retry** — `llm_threat_reasoning.py` uses stdlib `urllib` with exponential backoff — no `requests` library needed.
+
+**Time-windowed features** — `network_feature_engineering.py` aggregates logs into 5-minute windows per source IP, computing Shannon entropy for port scanning detection.
+
+**Configurable risk fusion** — `risk_scoring_engine.py` uses validated weighted scoring where weights must sum to exactly 1.0 (with float precision tolerance of 1e-9).
+
+-----
+
+## 📊 Sample Results
+
+```
+Classification Report (sample dataset):
+              precision    recall  f1-score
+benign            0.97      0.98      0.97
+brute_force       0.99      0.98      0.98
+c2                0.96      0.94      0.95
+data_exfil        0.95      0.96      0.95
+ddos              0.99      0.99      0.99
+scan              0.98      0.99      0.98
+
+Weighted F1: 0.978
+```
+
+-----
+
+## 🔮 Future Roadmap
+
+- [ ] Deploy on Streamlit Cloud (public demo)
+- [ ] Real-time log streaming via Kafka/WebSocket
+- [ ] MITRE ATT&CK framework mapping
+- [ ] Multi-tenant support with RBAC
+- [ ] Email/Slack alert notifications
+- [ ] Extended to 15+ attack types
+
+-----
+
+## 👨‍💻 About the Author
+
+**Mohammed Muzamil C**
+Final Year BCA Student | Cybersecurity & Machine Learning
+Nandi Institute of Management & Science College, Ballari
+Vijayanagara Sri Krishnadevaraya University
+
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-Connect-blue?style=flat&logo=linkedin)](https://linkedin.com/in/muzzammilc7)
+[![GitHub](https://img.shields.io/badge/GitHub-Follow-black?style=flat&logo=github)](https://github.com/Not-muzzyy)
+
+-----
+
+## 📄 License
+
+MIT License — open source and free to use.
+
+-----
+
+<p align="center">
+  ⭐ If this project helped you, please star the repository!
+</p>
